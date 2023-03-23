@@ -1,218 +1,96 @@
-function mm(x) = x;
-
-// Constant
-
-VEC_X = [1, 0, 0];
-VEC_Y = [0, 1, 0];
-VEC_Z = [0, 0, 1];
-
-NOZZLE = mm(0.4);
-
-BIAS = mm(0.01);
-
-// Settings
+include <Constants.scad>
+include <Units.scad>
+include <Utils.scad>
+use <Rail.scad>
 
 $fn = 32;
 
-// Rail - Setting
+rail_type             = get_rail_type("piko100_h0");
+fixture_rail_distance = mm(61.90);
 
-rail_beam_height       = mm( 2.55);
-rail_beam_base_width   = mm( 1.74);
-rail_beam_base_height  = mm( 0.40);
-rail_beam_sole_width   = mm( 0.45);
-rail_beam_head_width   = mm( 0.80);
-rail_beam_head_height  = mm( 0.60);
-rail_beam_distance     = mm(17.20);
-rail_sleeper_length    = mm(30.00);
-rail_sleeper_width     = mm( 3.00);
-rail_sleeper_height    = mm( 1.90);
-rail_sleeper_distance  = mm( 7.50);
-
-rail_clamb_length      = mm( 4.45);
-rail_clamb_width       = mm( 1.45);
-rail_clamb_height      = mm( 0.85);
-rail_clamb_feet_length = mm( 6.60);
-rail_clamb_feet_width  = mm( 2.00);
-rail_clamb_feet_height = mm( 0.15);
-
-// Rail - Derived
-
-rail_beam_center      = 0;
-rail_beam_bottom      = 0;
-rail_beam_base_bottom = rail_beam_bottom;
-rail_beam_base_top    = rail_beam_base_bottom + rail_beam_base_height;
-rail_beam_base_center = rail_beam_center;
-rail_beam_base_right  = rail_beam_base_center + rail_beam_base_width / 2;
-rail_beam_base_left   = rail_beam_base_center - rail_beam_base_width / 2;
-
-rail_beam_head_top    = rail_beam_base_bottom + rail_beam_height;
-rail_beam_head_bottom = rail_beam_head_top - rail_beam_head_height;
-rail_beam_head_center = rail_beam_center;
-rail_beam_head_right  = rail_beam_head_center + rail_beam_head_width / 2;
-rail_beam_head_left   = rail_beam_head_center - rail_beam_head_width / 2;
-
-rail_beam_sole_bottom = rail_beam_base_top;
-rail_beam_sole_top    = rail_beam_head_bottom;
-rail_beam_sole_center = rail_beam_center;
-rail_beam_sole_right  = rail_beam_sole_center + rail_beam_sole_width / 2;
-rail_beam_sole_left   = rail_beam_sole_center - rail_beam_sole_width / 2;
-
-rail_sleeper_top      = rail_beam_bottom;
-rail_sleeper_bottom   = rail_sleeper_top - rail_sleeper_height;
-
-rail_clamb_bottom     = rail_sleeper_top;
-rail_clamb_top        = rail_clamb_bottom + rail_clamb_height;
-rail_clamb_center     = rail_beam_center;
-
-// Rail - modules
-
-module Rail(length, center=undef) {
-    RailBeams(length, center);
-    RailSleepers();
-   
-    module RailBeams(length, center=undef) {
-        rotate(90, VEC_X) {
-            linear_extrude(length, center=center) {
-                RailBeams2D();
-            }
-        }
-       
-        module RailBeams2D() {
-            mirror_copy() {
-                translate([rail_beam_distance/2, 0]) {
-                    RailBeam2D();
-                }
-            }
-        }
-       
-        module RailBeam2D() {
-            points = [
-                [rail_beam_base_left, rail_beam_base_bottom],
-                [rail_beam_base_left, rail_beam_base_top],
-                [rail_beam_sole_left, rail_beam_sole_bottom],
-                [rail_beam_sole_left, rail_beam_sole_top],
-                [rail_beam_head_left, rail_beam_head_bottom],
-                [rail_beam_head_left, rail_beam_head_top],
-               
-                [rail_beam_head_right, rail_beam_head_top],
-                [rail_beam_head_right, rail_beam_head_bottom],
-                [rail_beam_sole_right, rail_beam_sole_top],
-                [rail_beam_sole_right, rail_beam_sole_bottom],
-                [rail_beam_base_right, rail_beam_base_top],
-                [rail_beam_base_right, rail_beam_base_bottom],
-            ];
-            polygon(points);
-        }
-    }
-
-    module RailSleepers() {    
-        distribute(
-            vec      = VEC_Y,
-            length   = length,
-            distance = rail_sleeper_distance,
-            center=center
-        ) {
-            RailSleeper();
-            RailClambs();
-        }
-       
-        module RailSleeper() {
-            translate([0, 0, rail_sleeper_bottom]) {
-                linear_extrude(rail_sleeper_height) {
-                    square(
-                        [rail_sleeper_length, rail_sleeper_width],
-                        center = true
-                    );
-                }
-            }
-        }
-       
-        module RailClambs() {
-            mirror_copy(VEC_X) {
-                translate([rail_beam_distance / 2, 0]) {
-                    RailClamb();
-                }
-            }
-        }
-       
-        module RailClamb() {
-            Feet();
-            Clamb();
-           
-            module Feet() {
-                linear_extrude(rail_clamb_feet_height) {
-                    square(
-                        [rail_clamb_feet_length, rail_clamb_feet_width],
-                        center=true
-                    );
-                }
-            }
-            module Clamb() {
-                linear_extrude(rail_clamb_height) {
-                    square(
-                        [rail_clamb_length, rail_clamb_width],
-                        center=true
-                    );
-                }
-            }
-        }
-    }
+mirror_copy(VEC_X) translate([fixture_rail_distance/2, 0]) {
+    Rail(rail_type, 100, true);
 }
+translate([0, 0, clamb_top]) Fixture(rail_type);
 
 
-// Fixture - Setting
+module Fixture(
+    rail_type,
+    fixture_rail_distance
+) {
+    beam_height       = get_rail_beam_height(rail_type);
+    beam_base_width   = get_rail_beam_base_width(rail_type);
+    beam_base_height  = get_rail_beam_base_height(rail_type);
+    beam_sole_width   = get_rail_beam_sole_width(rail_type);
+    beam_head_width   = get_rail_beam_head_width(rail_type);
+    beam_head_height  = get_rail_beam_head_height(rail_type);
+    beam_distance     = get_rail_beam_distance(rail_type);
+    sleeper_length    = get_rail_sleeper_length(rail_type);
+    sleeper_width     = get_rail_sleeper_width(rail_type);
+    sleeper_height    = get_rail_sleeper_height(rail_type);
+    sleeper_distance  = get_rail_sleeper_distance(rail_type);
+    clamb_length      = get_rail_clamb_length(rail_type);
+    clamb_width       = get_rail_clamb_width(rail_type);
+    clamb_height      = get_rail_clamb_height(rail_type);
+    clamb_feet_length = get_rail_clamb_feet_length(rail_type);
+    clamb_feet_width  = get_rail_clamb_feet_width(rail_type);
+    clamb_feet_height = get_rail_clamb_feet_height(rail_type);
 
-fixture_rail_count        = 2;
-fixture_rail_distance     = mm(61.90);
+    beam_bottom      = 0;
+    sleeper_top      = beam_bottom;
+    clamb_bottom     = sleeper_top;
+    clamb_top        = clamb_bottom + clamb_height;
 
-fixture_thickness         = mm( 3.50);
-fixture_head_width        = mm(25.00);
-fixture_head_lenght       = mm(30.00);
+    // Fixture - Setting
 
-fixture_sole_width        = mm(12.50);
-fixture_sole_wall_thickness1= 4 * NOZZLE;
-fixture_sole_wall_thickness2= 2.5 * NOZZLE;
-fixture_corner_radius     = mm( 3.00);
+    fixture_rail_count        = 2;
+    fixture_rail_distance     = mm(61.90);
 
-fixture_wall_thickness_xy = 4 * NOZZLE;
-fixture_wall_thickness_z  = mm(0.5);
+    fixture_thickness         = mm( 3.50);
+    fixture_head_width        = mm(25.00);
+    fixture_head_lenght       = mm(30.00);
 
-fixture_rail_tolerance_xy = mm(0.05);
-fixture_rail_tolerance_z  = mm(0.0);
+    fixture_sole_width        = mm(12.50);
+    fixture_sole_wall_thickness1= 4 * NOZZLE;
+    fixture_sole_wall_thickness2= 2.5 * NOZZLE;
+    fixture_corner_radius     = mm( 3.00);
 
-fixture_rail_minimum_radius   = mm(500.0);
+    fixture_wall_thickness_xy = 4 * NOZZLE;
+    fixture_wall_thickness_z  = mm(0.5);
 
-fixture_spring_slot_width     = mm(1.0);
-fixture_spring_wall_thickness = 2 * NOZZLE;
-fixture_spring_wall_y         = mm(3.0);
+    fixture_rail_tolerance_xy = mm(0.05);
+    fixture_rail_tolerance_z  = mm(0.0);
 
-fixture_finger_hole_radius    = fixture_thickness - mm(0.8);
-fixture_finger_y_hole_length  = fixture_head_width / 2;
-fixture_finger_x_hole_length  = mm(8.0);
+    fixture_rail_minimum_radius   = mm(500.0);
 
-fixture_clip_length           = mm(10.0);
-fixture_clip_height           = (rail_beam_head_width - rail_beam_sole_width) / 2;
-fixture_clip_width            = mm(1.0);
+    fixture_spring_slot_width     = mm(1.0);
+    fixture_spring_wall_thickness = 2 * NOZZLE;
+    fixture_spring_wall_y         = mm(3.0);
 
-fixture_text_indent           = mm(.3);
+    fixture_finger_hole_radius    = fixture_thickness - mm(0.8);
+    fixture_finger_y_hole_length  = fixture_head_width / 2;
+    fixture_finger_x_hole_length  = mm(8.0);
+
+    fixture_clip_length           = mm(10.0);
+    fixture_clip_height           = (beam_head_width - beam_sole_width) / 2;
+    fixture_clip_width            = mm(1.0);
+
+    fixture_text_indent           = mm(.3);
 
 
-// Fixture - Derived
+    // Fixture - Derived
 
-fixture_length             = fixture_rail_distance + fixture_head_lenght;
+    fixture_length             = fixture_rail_distance + fixture_head_lenght;
 
-fixture_beam_channel_width = rail_beam_head_width
-                           + 2 * fixture_rail_tolerance_xy;
-fixture_beam_channel_depth = rail_beam_height
-                           - rail_clamb_top
-                           + fixture_rail_tolerance_z;
+    fixture_beam_channel_width = beam_head_width
+                               + 2 * fixture_rail_tolerance_xy;
+    fixture_beam_channel_depth = beam_height
+                               - clamb_top
+                               + fixture_rail_tolerance_z;
 
-fixture_spring_slot_lenght = fixture_head_width / 4 * 3;
-fixture_spring_slot_depth  = fixture_thickness - fixture_wall_thickness_z;
-
-// Fixture - 3D
-
-module Fixture() {
+    fixture_spring_slot_lenght = fixture_head_width / 4 * 3;
+    fixture_spring_slot_depth  = fixture_thickness - fixture_wall_thickness_z;
+    
     if(fixture_rail_count == 1) {
         Middle();
         Text(0);
@@ -421,7 +299,7 @@ module Fixture() {
             translate([fixture_rail_minimum_radius, 0]) {
                 $fn=undef;
                 $fa=1.0;
-                circle(r=fixture_rail_minimum_radius - rail_beam_distance / 2 + delta);
+                circle(r=fixture_rail_minimum_radius - beam_distance / 2 + delta);
             }
         }
         
@@ -429,7 +307,7 @@ module Fixture() {
             translate([-fixture_rail_minimum_radius, 0]) {
                 $fn=undef;
                 $fa=1.0;
-                circle(r=fixture_rail_minimum_radius + rail_beam_distance / 2 - delta);
+                circle(r=fixture_rail_minimum_radius + beam_distance / 2 - delta);
             }
         }
     }
@@ -523,32 +401,5 @@ module Fixture() {
     }
 }
 
-*mirror_copy(VEC_X) translate([fixture_rail_distance/2, 0]) {
-    Rail(100, true);
-}
-translate([0, 0, rail_clamb_top]) Fixture();
 
-// Utility - modules
-
-module round_off(r) {
-    offset(r=r)offset(-r) children();
-}
-
-module mirror_copy(vec = undef) {
-    children();
-    mirror(vec) children();
-}
-
-module distribute(vec, length, distance, center) {
-    count       = floor(length / distance) + 1;
-    start_index = -count / 2 + 1;
-    end_index   =  count / 2 - 1;
-   
-    for(index = [start_index:1:end_index]) {
-        a = index * distance;
-        translate(vec * a) {
-            children();
-        }
-    }
-}
 
